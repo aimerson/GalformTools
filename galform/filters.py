@@ -3,6 +3,7 @@
 import sys,os,fnmatch
 import numpy as np
 from .progress import *
+from .plotting.utils import *
 
 def effective_wavelength(wav,resp,alpha=1.0,beta=0.0):
     from scipy import integrate
