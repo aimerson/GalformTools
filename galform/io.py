@@ -3,7 +3,6 @@
 import numpy as np
 
 
-
 class GalformOutput(object):
     
     def __init__(self,outdir,verbose=False):                
