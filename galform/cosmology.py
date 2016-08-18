@@ -1,20 +1,20 @@
 #! /usr/bin/env python
 
+import sys
 import numpy as np
 import scipy as sp
 from scipy.constants import c,constants
 from scipy.integrate import romberg
 
-class cosmology:
+
+class Cosmology(object):
     """
-    cosmology
-    
-    This class contains various functions to compute distances and
-    times in a Universe with a given cosmology.
+    Cosmology: class to compute distances and times in 
+               a Universe with a given cosmology.
     
     List of functions:
 
-    parameters() : report back parameters for specified cosmology
+    report_parameters() : report back parameters for specified cosmology
     comoving_distance() : calculates the comoving distance at
                           redshift, z
     redshift_at_distance() : calculates the redshift at comoving
@@ -44,51 +44,58 @@ class cosmology:
     """
     
     def __init__(self,omega0=0.25,lambda0=0.75,omegab=0.045,h0=0.73,\
-                 sigma8=0.9,ns=1.0,radiation=False):
+                 sigma8=0.9,ns=1.0,radiation=False,zmax=20.0,nzmax=10000):
+        classname = self.__class__.__name__
+        funcname = self.__class__.__name__+"."+sys._getframe().f_code.co_name
 
-        #
         # Store cosmological parameters
-        #
-        self._WM = omega0
-        self._WV = lambda0
-        self._WB = omegab
-        self._h = h0
-        self._sigma8 = sigma8
-        self._ns = ns
+        self.omega0 = omega0
+        self.lambda0 = lambda0
+        self.omegab = omegab
+        self.h0 = h0
+        self.sigma8 = sigma8
+        self.ns = ns
         if radiation:            
-            self._WR = (4.165e-5)/(self._h**2)
+            self.omegar = (4.165e-5)/(self.h0**2)
         else:
-            self._WR = 0.0            
-        self._WK = 1.0 - (self._WM + self._WV + self._WR)
+            self.omegar = 0.0            
+        self.omegak = 1.0 - (self.omega0 + self.lambda0 + self.omegar)
 
         # Define useful constants/conversions
-        self._nzmax = 10000
-        self._zmax = 20.0
+        self.Mpc = constants.mega*constants.parsec
+        self.H100 = 100.0*constants.kilo/self.Mpc
+        self.Gyr = constants.giga*constants.year
+        self.invH0 = (self.Mpc/(100.0*constants.kilo))/self.Gyr
+        self.HubbleDistance = c/self.H100
+        self._kmpersec_to_mpchpergyr = constants.kilo*(self.Gyr/self.Mpc)*self.h0
+
+        # Set up array of redshift vs. comoving distance for
+        # interpolation for other properties
+        self._nzmax = nzmax
+        self._zmax = zmax
         self._r_comoving = np.zeros(self._nzmax)
         self._dz = self._zmax/float(self._nzmax)
         self._redshift = np.arange(0.0,self._zmax,self._dz)
         self._inv_dz = 1.0/self._dz
-        self._Mpc = constants.mega*constants.parsec
-        self._H100 = 100.0*constants.kilo/self._Mpc
-        self._Gyr = constants.giga*constants.year
-        self._invH0 = (self._Mpc/(100.0*constants.kilo))/self._Gyr
-        self._kmpersec_to_mpchpergyr = constants.kilo*(self._Gyr/self._Mpc)*self._h
-        self._DH = c/self._H100 # Hubble Distance
+        self._initialize_redshift_array = True
 
-        # Set up array of redshift vs. comoving distance for
-        # interpolation for other properties
-        def finit(z):
-            a = 1.0/(1.0+z)
-            result = self._WK*(a**-2) + self._WV + \
-                     self._WM*(a**-3) + self._WR*(a**-4)
-            result = (c/self._H100)/np.sqrt(result)/self._Mpc
-            return result
-        for i in range(1,len(self._redshift)):
-            z1 = self._redshift[i-1]
-            z2 = self._redshift[i]
-            self._r_comoving[i] = self._r_comoving[i-1] + \
-                                  romberg(finit,z1,z2)
+        return
 
+
+    def report_parameters(self):
+        report = "\nCOSMOLOGY:\n" + \
+            "   Omega_M = {0:5.3f}\n".format(self.omega0) + \
+            "   Omega_b = {0:5.3f}\n".format(self.omegab) + \
+            "   Omega_V = {0:5.3f}\n".format(self.lambda0) + \
+            "   h       = {0:5.3f}\n".format(self.h0) + \
+            "   sigma_8 = {0:5.3f}\n".format(self.sigma8) + \
+            "   n_s     = {0:5.3f}\n".format(self.ns) + \
+            "   Omega_R = {0:5.3e}\n".format(self.omegar) + \
+            "   Omega_k = {0:5.3f}\n".format(self.omegak)
+        report = "-"*30 + report + "-"*30 + "\n"
+        print(report)
+        return
+    
 
     def E(self,z=0.0):
         """
@@ -96,10 +103,10 @@ class cosmology:
         
         """
         a = 1.0/(1.0+z)
-        result = self._WK*(a**-2) + self._WV + \
-                 self._WM*(a**-3) + self._WR*(a**-4)
+        result = self.omegak*(a**-2) + self.lambda0 + \
+                 self.omega0*(a**-3) + self.omegar*(a**-4)
         return np.sqrt(result)
-    
+
 
     def H(self,z=0.0):
         """
@@ -108,8 +115,8 @@ class cosmology:
         """
         result = 100.0*self.E(z)
         return result
-    
 
+    
     def f(self,z=0.0):
         """
         f(z): Function relating comoving distance to redshift.
@@ -119,30 +126,21 @@ class cosmology:
         Note: uses global cosmology variables.          
         """
         a = 1.0/(1.0+z)
-        result = self._WK*(a**-2) + self._WV + \
-                 self._WM*(a**-3) + self._WR*(a**-4)
-        result = (c/self._H100)/np.sqrt(result)/self._Mpc
+        result = self.omegak*(a**-2) + self.lambda0 + \
+                 self.omega0*(a**-3) + self.omegar*(a**-4)
+        result = (c/self.H100)/np.sqrt(result)/self.Mpc
         return result
-    
 
-    def parameters(self):
-        """
-        parameters(): reports parameters for cosmology
 
-        USAGE: parameters()            
-        """
-        print "***********************"
-        print "COSMOLOGY:"
-        print "   Omega_M = {0:5.3f}".format(self._WM)
-        print "   Omega_b = {0:5.3f}".format(self._WB)
-        print "   Omega_V = {0:5.3f}".format(self._WV)
-        print "   h       = {0:5.3f}".format(self._h)
-        print "   Omega_R = {0:5.3e}".format(self._WR)
-        print "   Omega_k = {0:5.3f}".format(self._WK)
-        print "   sigma_8 = {0:5.3f}".format(self._sigma8)
-        print "   n_s     = {0:5.3f}".format(self._ns)
-        print "***********************"
+    def _init_redshift_array(self):
+        for i in range(1,len(self._redshift)):
+            z1 = self._redshift[i-1]
+            z2 = self._redshift[i]
+            self._r_comoving[i] = self._r_comoving[i-1] + \
+                                  romberg(self.f,z1,z2)
+        self._initialize_redshift_array = False
         return
+
     
     def comoving_distance(self,z=0.0):
         """
@@ -152,7 +150,10 @@ class cosmology:
         USAGE: comoving_distance(z)
         
         """
+        if self._initialize_redshift_array:
+            self._init_redshift_array()
         return np.interp(z,self._redshift,self._r_comoving)
+
     
     def redshift_at_distance(self,r=0.0):
         """
@@ -162,6 +163,8 @@ class cosmology:
         USAGE: redshift_at_distance(z)
         
         """
+        if self._initialize_redshift_array:
+            self._init_redshift_array()
         return np.interp(r,self._r_comoving,self._redshift)
     
     
@@ -174,19 +177,19 @@ class cosmology:
         
         """
         a = 1.0/(1.0+z)
-        if(self._WM >= 0.99999): # Einstein de Sitter Universe
-            result = self._invH0*2.0*np.sqrt(a)/(3.0*self._h)
+        if(self.omega0 >= 0.99999): # Einstein de Sitter Universe
+            result = self.invH0*2.0*np.sqrt(a)/(3.0*self.h0)
         else:
-            if(self._WV <= 0.0): # Open Universe
+            if(self.lambda0 <= 0.0): # Open Universe
                 zplus1 = 1.0/a
-                result1 = self._WM/(2.0*self._h*(1-self._WM)**1.5)
-                result2 = 2.0*np.sqrt(1.0-self._WM)*np.sqrt(self._WM*(zplus1-1.0)+1.0)
-                result3 = np.arccosh((self._WM*(zplus1-1.0)-self._WM+2.0)/(self._WM*zplus1))
-                result = self._invH0*result1*(result2/result3)
+                result1 = self.omega0/(2.0*self.h0*(1-self.omega0)**1.5)
+                result2 = 2.0*np.sqrt(1.0-self.omega0)*np.sqrt(self.omega0*(zplus1-1.0)+1.0)
+                result3 = np.arccosh((self.omega0*(zplus1-1.0)-self.omega0+2.0)/(self.omega0*zplus1))
+                result = self.invH0*result1*(result2/result3)
             else: # Flat Universe with non-zero Cosmological Constant
-                result1 = (2.0/(3.0*self._h*np.sqrt(1.0-self._WM)))
-                result2 = np.arcsinh(np.sqrt((1.0/self._WM-1.0)*a)*a)
-                result = self._invH0*result1*result2
+                result1 = (2.0/(3.0*self.h0*np.sqrt(1.0-self.omega0)))
+                result2 = np.arcsinh(np.sqrt((1.0/self.omega0-1.0)*a)*a)
+                result = self.invH0*result1*result2
         return result
             
             
@@ -211,35 +214,35 @@ class cosmology:
         USAGE: angular_diameter_distance(z)    
 
         """
-        dr = self.comoving_distance(z)*self._Mpc/(c/self._H100)
-        x = np.sqrt(np.abs(self._WK))*dr
+        dr = self.comoving_distance(z)*self.Mpc/(c/self.H100)
+        x = np.sqrt(np.abs(self.omegak))*dr
         if np.ndim(x) > 0:
             ratio = np.ones_like(x)*-1.00
             mask = (x > 0.1)
             y = x[np.where(mask)]
-            if(self._WK > 0.0):
+            if(self.omegak > 0.0):
                 np.place(ratio,mask,0.5*(np.exp(y)-np.exp(-y))/y)
             else:
                 np.place(ratio,mask,np.sin(y)/y)
             mask = (x <= 0.1)
             y = x[np.where(mask)]**2
-            if(self._WK < 0.0): 
+            if(self.omegak < 0.0): 
                 y = -y
             np.place(ratio,mask,1.0 + y/6.0 + (y**2)/120.0)
         else:        
             ratio = -1.0
             if(x > 0.1):
-                if(self._WK > 0.0):
+                if(self.omegak > 0.0):
                     ratio = 0.5*(np.exp(x)-np.exp(-x))/x
                 else:
                     ratio = np.sin(x)/x
             else:
                 y = x**2
-                if(self._WK < 0.0): 
+                if(self.omegak < 0.0): 
                     y = -y
                 ratio = 1.0 + y/6.0 + (y**2)/120.0
         dt = ratio*dr/(1.0+z)
-        dA = (c/self._H100)*dt/self._Mpc
+        dA = (c/self.H100)*dt/self.Mpc
         return dA
 
 
@@ -265,8 +268,8 @@ class cosmology:
         USAGE: luminosity_distance(z)
         
         """
-        da = self.angular_diameter_distance(z)*self._Mpc/(c/self._H100)
-        dL = (c/self._H100)*da*((1.0+z)**2)/self._Mpc
+        da = self.angular_diameter_distance(z)*self.Mpc/(c/self.H100)
+        dL = (c/self.H100)*da*((1.0+z)**2)/self.Mpc
         return dL
     
 
@@ -279,36 +282,36 @@ class cosmology:
         USAGE: comoving_volume(z)
         
         """
-        dr = self.comoving_distance(z)*self._Mpc/(c/self._H100)
-        x = np.sqrt(np.abs(self._WK))*dr
+        dr = self.comoving_distance(z)*self.Mpc/(c/self.H100)
+        x = np.sqrt(np.abs(self.omegak))*dr
         if np.ndim(z) > 0:
             ratio = np.ones_like(z)*-1.0
             mask = (x > 0.1)
             y = x[np.where(mask)]
-            if(self._WK > 0.0):
+            if(self.omegak > 0.0):
                 rat = (0.125*(np.exp(2.0*y)-np.exp(-2.0*y))-y/2.0)
             else:
                 rat = (y/2.0 - np.sin(2.0*y)/4.0)
             np.place(ratio,mask,rat/((y**3)/3.0))
             mask = (x <= 0.1)
             y = x[np.where(mask)]**2
-            if(self._WK < 0.0): 
+            if(self.omegak < 0.0): 
                 y = -y
             np.place(ratio,mask,1.0 + y/5.0 + (y**2)*(2.0/105.0))
         else:  
             ratio = -1.0
             if(x > 0.1):
-                if(self._WK > 0.0):
+                if(self.omegak > 0.0):
                     ratio = (0.125*(np.exp(2.0*x)-np.exp(-2.0*x))-x/2.0)
                 else:
                     ratio = (x/2.0 - np.sin(2.0*x)/4.0)
                 ratio = ratio/((x**3)/3.0)
             else:
                 y = x**2
-                if(self._WK < 0.0): 
+                if(self.omegak < 0.0): 
                     y = -y
                 ratio = 1.0 + y/5.0 + (y**2)*(2.0/105.0)
-        vol = 4.0*np.pi*ratio*(((c/self._H100)*dr/self._Mpc)**3)/3.0
+        vol = 4.0*np.pi*ratio*(((c/self.H100)*dr/self.Mpc)**3)/3.0
         return vol
 
 
@@ -377,70 +380,38 @@ class cosmology:
 
 
 
+class WMAP(Cosmology):
+    
+    def __init__(self,year,radiation=False,zmax=20.0,nzmax=10000):
+        classname = self.__class__.__name__
+        funcname = self.__class__.__name__+"."+sys._getframe().f_code.co_name
+        self.year = year        
+        if self.year == 1:
+            omega0 = 0.25
+            lambda0 = 0.75
+            omegab = 0.045
+            h0 = 0.73
+            sigma8 = 0.9
+            ns = 1.0
+        elif year == 3:
+            pass
+        elif year == 5:
+            pass
+        elif year == 7:
+            omega0 = 0.272
+            lambda0 = 0.728
+            omegab = 0.045
+            h0 = 0.702
+            sigma8 = 0.807
+            ns = 0.961
+        elif year == 9:
+            pass
+        else:
+            print("*** ERROR! "+classname+"(): year not recognised!")
+            print("           Select one of the following years: 1,3,5,7,9.")                        
+        super(WMAP, self).__init__(omega0=omega0,lambda0=lambda0,omegab=omegab,h0=h0,\
+                                       sigma8=sigma8,ns=ns,radiation=radiation,\
+                                       zmax=zmax,nzmax=nzmax)
+        return
 
-
-# Set cosmology for Millennium simulation
-def Millennium(radiation=False):    
-    return cosmology(omega0=0.25,lambda0=0.75,omegab=0.045,h0=0.73,\
-                 sigma8=0.9,ns=1.0,radiation=radiation)
-
-
-def WMAP(year=7,radiation=False):
-    if year == 1:
-        omega0 = 0.25
-        lambda0 = 0.75
-        omegab = 0.045
-        h0 = 0.73
-        sigma8 = 0.9
-        ns = 1.0
-    elif year == 3:
-        pass
-    elif year == 5:
-        pass
-    elif year == 7:
-        omega0 = 0.272
-        lambda0 = 0.728
-        omegab = 0.045
-        h0 = 0.702
-        sigma8 = 0.807
-        ns = 0.961
-    elif year == 9:
-        pass
-    else:
-        print "*** ERROR: WMAP(): please select one of the following years: 1,3,5,7,9."
-        return None
-    return cosmology(omega0=omega0,lambda0=lambda0,omegab=omegab,h0=h0,\
-                     sigma8=sigma8,ns=ns,radiation=radiation)
-
-
-
-def hod(bins,haloid,mhalo,mask=None):
-    from utilities_statistics import outside_range
-    # If no additional mask supplied, assume using
-    # all galaxies
-    if mask is None:
-        mask = np.ones(len(haloid),bool)
-    # Find location of unique halos in arrayof IDs
-    id,index,inv = np.unique(haloid[np.where(mask)],\
-                             return_index=True,return_inverse=True)
-    # Count number of galaxies in each halo
-    ngals = np.bincount(inv)
-    # Extract masses of halos
-    masses = mhalo[np.where(mask)]
-    mass = masses[index]
-    # Only use halos with masses inside range spanned
-    # by mass bins
-    mlow = bins[0]
-    dm = bins[1] - bins[0]
-    mupp = bins[-1] + dm
-    hod = np.zeros_like(bins)
-    err = np.zeros_like(bins)
-    binmask = outside_range(mass,low=mlow,upp=mupp)
-    ibins = np.digitize(mass,bins)
-    np.place(ibins,binmask,-999)
-    # Calculate halo occupation distribution
-    for i in range(len(bins)):
-        hod[i] = np.mean(ngals[np.where(ibins==i)])
-        err[i] = np.std(ngals[np.where(ibins==i)])
-    return hod,err
 
