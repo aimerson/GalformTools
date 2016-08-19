@@ -47,7 +47,6 @@ class GalformHDF5(HDF5):
         self.cosmology = Cosmology(omega0=omega0,lambda0=lambda0,omegab=omegab,\
                                        h0=h0,sigma8=sigma8,ns=ns)
 
-
         # Store outputs
         nout = np.array(self.fileObj["Output_Times"]["nout"])[()]
         dtype = [("a",float),("z",float),("t",float),("tlbk",float)]
@@ -56,11 +55,6 @@ class GalformHDF5(HDF5):
         self.outputs.z = np.array(self.fileObj["Output_Times"]["zout"])
         self.outputs.t = np.array(self.fileObj["Output_Times"]["tout"])
         self.outputs.tlbk = np.array(self.fileObj["Output_Times"]["tlkbk"])
-
-        
-        #print self.fileObj.keys()
-
-               
 
         return
     
@@ -75,8 +69,32 @@ class GalformHDF5(HDF5):
             out = self.fileObj[outstr]
         return out
 
-
     def availableProperties(self,z):
         funcname = self.__class__.__name__+"."+sys._getframe().f_code.co_name
         out = self.selectOutput(z,returnPath=True)
         return list(map(str,self.lsDatasets(out)))
+    
+
+    def readGalaxies(self,z,props=None):
+        funcname = self.__class__.__name__+"."+sys._getframe().f_code.co_name
+        # Select epoch closest to specified redshift
+        out = self.selectOutput(z)
+        # Set list of all available properties
+        allprops = self.availableProperties(z)
+        # Get number of galaxies
+        ngals = len(np.array(out[allprops[0]]))
+        # Read all properties if not specified
+        if props is None:
+            props = allprops
+        # Construct datatype for galaxy properties to read
+        dtype = []
+        for p in props:
+            if len(fnmatch.filter(allprops,p))>0:
+                matches = fnmatch.filter(allprops,p)
+                dtype = dtype + [ (str(m),out[m].dtype) for m in matches ]
+        galaxies = np.zeros(ngals,dtype=dtype)
+        # Extract galaxy properties
+        for p in galaxies.dtype.names:
+            if p in allprops:
+                galaxies[p] = np.copy(np.array(out[p]))
+        return galaxies
