@@ -52,7 +52,7 @@ class ComputeLuminosityFunction(object):
             for p in goodProps:
                 values = np.array(out[p])
                 if fnmatch.fnmatch(p,"L_*") or fnmatch.fnmatch(p,"Lmod_*") or fnmatch.fnmatch(p,"Ld_*[or]"):
-                    values np.log10(values) + 40.0
+                    values = np.log10(values) + 40.0
                     bins = self.luminosityBins
                 elif fnmatch.fnmatch(p,"Ld_*"):
                     bins = self.magnitudeBins
@@ -100,8 +100,7 @@ class ComputeLuminosityFunction(object):
                     PROG.print_status_line()
         return
 
-
-      def writeToHDF5(self,hdf5File,verbose=False):
+    def writeToHDF5(self,hdf5File,verbose=False):
         funcname = self.__class__.__name__+"."+sys._getframe().f_code.co_name
         if verbose:
             print(funcname+"(): Writing luminosity function data to "+hdf5File+" ...")
