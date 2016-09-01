@@ -141,3 +141,42 @@ class ComputeLuminosityFunction(object):
 
 
 
+class GalformLuminosityFunction(object):
+
+    def __init__(self,luminosityFunctionFile):
+        classname = self.__class__.__name__
+        funcname = self.__class__.__name__+"."+sys._getframe().f_code.co_name
+        self.file = luminosityFunctionFile
+        f = HDF5(self.file,'r')
+        # Read bins arrays
+        bins = f.readDatasets("/",required=["luminosityBins","magnitudeBins"])
+        self.luminosityBins = np.copy(bins["luminosityBins"])
+        self.magnitudeBins = np.copy(bins["magnitudeBins"])
+        del bins
+        # Read list of available outputs and datasets
+        self.outputs = list(map(str,f.lsGroups("Outputs")))
+        self.redshifts = np.ones(len(self.outputs))
+        self.datasets = {}
+        for i,out in enumerate(self.outputs):
+            self.redshifts[i] = f.readAttributes("Outputs/"+out)["redshift"]
+            self.datasets[out] = list(map(str,f.lsDatasets("Outputs/"+out)))
+        f.close()
+        return
+
+    def getDatasets(self,z,required=None,verbose=False):
+        funcname = self.__class__.__name__+"."+sys._getframe().f_code.co_name
+        iselect = np.argmin(np.fabs(self.redshifts-z))
+        path = "Outputs/"+self.outputs[iselect]
+        if verbose:
+            print_str = funcname+"(): Reading luminosity function(s) for z = "+\
+                str(self.redshifts[iselect])+"\n         -- located in path "+path
+            print(print_str)
+        f = HDF5(self.file,'r')
+        availableDatasets = list(map(str,f.lsDatasets(path)))
+        datasets = []
+        for req in required:
+            datasets = datasets + fnmatch.filter(availableDatasets,req)
+        lfData = f.readDatasets(path,required=datasets)
+        f.close()
+        return lfData
+
