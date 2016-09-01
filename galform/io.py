@@ -3,8 +3,6 @@
 
 import sys,os,fnmatch
 import numpy as np
-
-
 from .hdf5 import HDF5
 from .GalformError import FileError
 from .cosmology import Cosmology
