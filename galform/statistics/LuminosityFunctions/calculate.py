@@ -82,7 +82,7 @@ class ComputeLuminosityFunction(object):
         return 
 
     
-    def addLuminosityFunctions(self,lfObj):
+    def addLuminosityFunctions(self,lfObj,binsTolerance=1.0e-3,verbose=False):
         funcname = self.__class__.__name__+"."+sys._getframe().f_code.co_name
         if verbose:
             print(funcname+"(): adding luminosity functions...")
@@ -90,9 +90,9 @@ class ComputeLuminosityFunction(object):
         # already been calculated.  If not simply store second object
         # as luminosity functions for this class.
         if len(self.luminosityFunction.keys()) == 0:
-            self.luminosityFunction = lfClass.luminosityFunction.copy()
-            self.magnitudeBins = np.copy(lfClass.magnitudeBins)
-            self.luminosityBins = np.copy(lfClass.luminosityBins)
+            self.luminosityFunction = lfObj.luminosityFunction.copy()
+            self.magnitudeBins = np.copy(lfObj.magnitudeBins)
+            self.luminosityBins = np.copy(lfObj.luminosityBins)
         else:
             # Check luminosity and magnitude bins for two LF objects
             # are consistent
@@ -108,7 +108,7 @@ class ComputeLuminosityFunction(object):
                 if outKey in lfObj.luminosityFunction.keys():
                     for p in self.luminosityFunction[outKey].keys():
                         if p in lfObj.luminosityFunction[outKey].keys():
-                            self.luminosityFunction[outKey][p] += lfClass.luminosityFunction[outKey][p]
+                            self.luminosityFunction[outKey][p] += lfObj.luminosityFunction[outKey][p]
                 PROG.increment()
                 if verbose:
                     PROG.print_status_line()
