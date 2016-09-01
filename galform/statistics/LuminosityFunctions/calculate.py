@@ -2,9 +2,11 @@
 
 
 import sys
+import fnmatch
 import copy
 import numpy as np
 from ...utils.progress import Progress
+from ...hdf5 import HDF5
 from ...io import GalformHDF5
 
 
@@ -23,10 +25,11 @@ class ComputeLuminosityFunction(object):
             self.luminosityBins = np.linspace(35.0,44.0,100)
         # Dictionary to store results
         self.luminosityFunction = {}
+        self.outputs = {}
         return
 
     
-    def processOutput(self,galaxiesFile,redshifts=None,props=None):
+    def processOutput(self,galaxiesFile,redshifts=None,props=None,verbose=False):
         funcname = self.__class__.__name__+"."+sys._getframe().f_code.co_name
         # Open GALFORM file
         GALFORM = GalformHDF5(galaxiesFile,'r')
@@ -34,31 +37,42 @@ class ComputeLuminosityFunction(object):
         if redshifts is None:
             redshifts = np.copy(GALFORM.outputs.z)
         # Loop over redshifts
+        if verbose:
+            print(funcname+"(): computing luminosity functions...")
         for z in redshifts:            
             # Select properties
-            allProperties = GALFORM.availableProperties(z)
+            allProps = GALFORM.availableProperties(z)
             if props is None:
-                goodProps = allProperties
+                goodProps = allProps
             else:
                 goodProps = []
-                for p in tmpProps:
+                for p in props:
                     goodProps = goodProps + fnmatch.filter(allProps,p)
             # Select output
-            outstr = selectOutput(z,returnPath=False)
-            out = selectOutput(z,returnPath=True)
+            outstr = GALFORM.selectOutput(z,returnPath=True)
+            out = GALFORM.selectOutput(z,returnPath=False)
+            iout = int(outstr.replace("Output",""))
+            zOut = GALFORM.outputs.z[iout-1]
+            if verbose:
+                print(funcname+"(): processing "+outstr+" (z = "+str(zOut)+")")
+            if outstr not in self.outputs.keys():
+                self.outputs[outstr] = zOut
             # Loop over properties
             redshiftLF = {}
             PROG = Progress(len(goodProps))
             for p in goodProps:
                 values = np.array(out[p])
                 if fnmatch.fnmatch(p,"L_*") or fnmatch.fnmatch(p,"Lmod_*") or fnmatch.fnmatch(p,"Ld_*[or]"):
-                    values = np.log10(values) + 40.0
+                    values = np.log10(values+1.0e-20) + 40.0
                     bins = self.luminosityBins
                 elif fnmatch.fnmatch(p,"Ld_*"):
                     bins = self.magnitudeBins
                 else:
                     bins = None
                     values = None
+                if any(np.isinf(values)):
+                    np.place(values,np.isinf(values),-999.0)
+                weight = np.ones_like(values)
                 redshiftLF[p],bins = np.histogram(values,bins=bins,weights=weight)
                 PROG.increment()
                 if verbose:
@@ -119,19 +133,15 @@ class ComputeLuminosityFunction(object):
         fileObj.mkGroup("Outputs")
         for outstr in self.luminosityFunction.keys():
             fileObj.mkGroup("Outputs/"+outstr)
-            iout = int(outstr.replace("Output",""))
-            iselect = np.argwhere(self.galHDF5Obj.outputs.iout==iout)
-            z = str(self.galHDF5Obj.outputs["z"][iselect][0][0])
-            fileObj.addAttributes("Outputs/"+outstr,{"redshift":z})
+            fileObj.addAttributes("Outputs/"+outstr,{"redshift":self.outputs[outstr]})
             for p in self.luminosityFunction[outstr].keys():
                 path = "Outputs/"+outstr+"/"
-                redshiftLabel = fnmatch.filter(p.split(":"),"z*")[0]
                 lfData = self.luminosityFunction[outstr][p]
-                if fnmatch.fnmatch(p,"*LineLuminosity*"):
+                if fnmatch.fnmatch(p,"L_*") or fnmatch.fnmatch(p,"Lmod_*") or fnmatch.fnmatch(p,"Ld_*[or]"):
                     lfData /= luminosityBinWidth
                 else:
                     lfData /= magnitudeBinWidth
-                fileObj.addDataset(path,p.replace(":"+redshiftLabel,""),lfData,chunks=True,compression="gzip",\
+                fileObj.addDataset(path,p,lfData,chunks=True,compression="gzip",\
                                        compression_opts=6)
         fileObj.close()
         if verbose:
