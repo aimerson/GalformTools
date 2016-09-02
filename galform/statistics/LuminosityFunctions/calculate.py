@@ -65,7 +65,7 @@ class ComputeLuminosityFunction(object):
                 if fnmatch.fnmatch(p,"L_*") or fnmatch.fnmatch(p,"Lmod_*") or fnmatch.fnmatch(p,"Ld_*[or]"):
                     values = np.log10(values+1.0e-20) + 40.0
                     bins = self.luminosityBins
-                elif fnmatch.fnmatch(p,"Ld_*"):
+                elif fnmatch.fnmatch(p,"mag*[or]_*"):
                     bins = self.magnitudeBins
                 else:
                     bins = None
@@ -93,6 +93,7 @@ class ComputeLuminosityFunction(object):
             self.luminosityFunction = lfObj.luminosityFunction.copy()
             self.magnitudeBins = np.copy(lfObj.magnitudeBins)
             self.luminosityBins = np.copy(lfObj.luminosityBins)
+            self.outputs = copy.copy(lfObj.outputs)
         else:
             # Check luminosity and magnitude bins for two LF objects
             # are consistent
