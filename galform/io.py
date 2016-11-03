@@ -6,6 +6,7 @@ import numpy as np
 from .hdf5 import HDF5
 from .GalformError import FileError
 from .cosmology import Cosmology
+from .utils.datatypes import getDataType
 
 class GalformHDF5(HDF5):
     
@@ -94,7 +95,7 @@ class GalformHDF5(HDF5):
         for p in props:
             if len(fnmatch.filter(allprops,p))>0:
                 matches = fnmatch.filter(allprops,p)
-                dtype = dtype + [ (str(m),out[m].dtype) for m in matches ]
+                dtype = dtype + [ (str(m),getDataType(out[m])) for m in matches ]
         galaxies = np.zeros(ngals,dtype=dtype)
         # Extract galaxy properties
         for p in galaxies.dtype.names:
@@ -102,9 +103,7 @@ class GalformHDF5(HDF5):
                 galaxies[p] = np.copy(np.array(out[p]))
                 # Correct units for specific properties:
                 # i) emission lines (correct to units of erg/s)
-                #if any([fnmatch.fnmatch(p,"L_"+comp+"_*") for comp in "tot total bul bulge disk".split()]):
-                #    galaxies[p] *= 1.0e40
-                #    print galaxies[p].dtype,type(1.0e40)
-                #    
+                if any([fnmatch.fnmatch(p,"L_"+comp+"_*") for comp in "tot total bul bulge disk".split()]):
+                    galaxies[p] *= 1.0e40
 
         return galaxies

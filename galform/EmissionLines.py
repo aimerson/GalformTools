@@ -4,12 +4,9 @@ import copy
 import sys,os,fnmatch
 import numpy as np
 from .io import GalformHDF5
+from .utils.datatypes import getDataType
 from .cosmology import Cosmology
 from .constants import megaParsec,centi,Pi
-
-
-
-
 
 
 class GalformEmissionLines(object):
@@ -23,8 +20,7 @@ class GalformEmissionLines(object):
         dtype = []
         lineKeys = linesObj.keys()
         dummy = lineKeys.pop(lineKeys.index("nline"))
-        dummy = [dtype.append((str(k),str(np.array(linesObj[k]).dtype))) for k in lineKeys]
-        print dtype
+        dummy = [dtype.append((str(k),getDataType(np.array(linesObj[k])))) for k in lineKeys]
         self.emissionLines = np.zeros(nlines,dtype=dtype)
         for name in self.emissionLines.dtype.names:
             self.emissionLines[name] = np.copy(np.array(linesObj[name]))
