@@ -66,6 +66,11 @@ class GalformHDF5(HDF5):
         else:
             out = self.fileObj[outstr]
         return out
+    
+    def nearestRedshift(self,z):
+        funcname = self.__class__.__name__+"."+sys._getframe().f_code.co_name
+        iz = np.argmin(np.fabs(self.outputs.z-z))
+        return self.outputs.z[iz]
 
     def availableProperties(self,z):
         funcname = self.__class__.__name__+"."+sys._getframe().f_code.co_name
@@ -93,6 +98,13 @@ class GalformHDF5(HDF5):
         galaxies = np.zeros(ngals,dtype=dtype)
         # Extract galaxy properties
         for p in galaxies.dtype.names:
-            if p in allprops:
+            if p in allprops:                
                 galaxies[p] = np.copy(np.array(out[p]))
+                # Correct units for specific properties:
+                # i) emission lines (correct to units of erg/s)
+                #if any([fnmatch.fnmatch(p,"L_"+comp+"_*") for comp in "tot total bul bulge disk".split()]):
+                #    galaxies[p] *= 1.0e40
+                #    print galaxies[p].dtype,type(1.0e40)
+                #    
+
         return galaxies
