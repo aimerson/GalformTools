@@ -156,9 +156,9 @@ class HDF5(object):
         g = self.fileObj[hdfdir]
         # Write data to group
         for n in data.dtype.names:
-            self.add_dataset(hdfdir,n,data[n],append=append,overwrite=overwrite,\
-                                 maxshape=maxshape,chunks=chunks,compression=compression,\
-                                 compression_opts=compression_opts,**kwargs)
+            self.addDataset(hdfdir,n,data[n],append=append,overwrite=overwrite,\
+                                maxshape=maxshape,chunks=chunks,compression=compression,\
+                                compression_opts=compression_opts,**kwargs)
         return
 
     @readonlyWrapper
