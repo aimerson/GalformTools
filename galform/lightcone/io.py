@@ -87,7 +87,7 @@ class PixelLightcone(object):
         self.filePrefix = filePrefix            
         # Read in pixel information
         pixelInformationFile = self.directory+"/"+self.filePrefix+".pixels-information"
-        self.pixels = np.zeros(1,dtype=[("NSIDE",int),("area",float),("number":int)]).view(np.recarray)
+        self.pixels = np.zeros(1,dtype=[("NSIDE",int),("area",float),("number",int)]).view(np.recarray)
         with open(pixelInformationFile,'r') as f:
             line = f.readline()
             while line.startswith("#"):
