@@ -15,6 +15,17 @@ def readonlyWrapper(func):
 class HDF5(object):
     
     def __init__(self,*args,**kwargs):
+        """ HDF5 Class for reading/writing HDF5 files
+
+        USAGE: OBJ = HDF5(filename,ioStatus,verbose=<verbose>)
+
+        Inputs: filename -- Path to HDF5 file.  
+                ioStatus -- Read ('r'), write ('w') or append ('a') to file.  
+                verbose -- Print extra information (default value = False).
+
+        Returns HDF5 class object.
+        """
+
         classname = self.__class__.__name__
         funcname = self.__class__.__name__+"."+sys._getframe().f_code.co_name
 
@@ -37,6 +48,18 @@ class HDF5(object):
     def close(self):
         self.fileObj.close()
         return
+
+    def lsObjects(self,hdfdir,recursive=False):
+        ls = []
+        thisdir = self.fileObj[hdfdir]
+        if recursive:
+            def _append_item(name, obj):
+                if isinstance(obj, h5py.Dataset):
+                    ls.append(name)
+            thisdir.visititems(_append_item)
+        else:
+            ls = thisdir.keys()
+        return list(map(str,ls))
 
     ##############################################################################
     # GROUPS
@@ -110,7 +133,8 @@ class HDF5(object):
             thisdir.visititems(_append_item)
         else:
             ls = thisdir.keys()
-        return ls
+            ls = [obj for obj in ls if isinstance(thisdir[obj], h5py.Group)]
+        return list(map(str,ls))
 
     ##############################################################################
     # DATASETS
@@ -130,7 +154,8 @@ class HDF5(object):
         if name in g.keys():
             write_key = False
             if append:
-                value = np.append(np.copy(g[name]),value)
+                shape = tuple(list(map(int,",".join(map(str,list(maxshape))).replace("None",'-1').split(","))))
+                value = np.append(np.copy(g[name]),value).reshape(shape)
                 del g[name]
                 write_key = True
             if overwrite:
@@ -155,10 +180,11 @@ class HDF5(object):
             self.mkGroup(hdfdir)
         g = self.fileObj[hdfdir]
         # Write data to group
-        for n in data.dtype.names:
-            self.addDataset(hdfdir,n,data[n],append=append,overwrite=overwrite,\
-                                maxshape=maxshape,chunks=chunks,compression=compression,\
-                                compression_opts=compression_opts,**kwargs)
+        dummy = [ self.addDataset(hdfdir,n,data[n],append=append,overwrite=overwrite,\
+                                      maxshape=maxshape,chunks=chunks,compression=compression,\
+                                      compression_opts=compression_opts,**kwargs) \
+                      for n in data.dtype.names ]
+        del dummy
         return
 
     @readonlyWrapper
@@ -169,11 +195,11 @@ class HDF5(object):
         return
 
     def lsDatasets(self,hdfdir):
-        objs = self.lsGroups(hdfdir,recursive=False)             
+        objs = self.lsObjects(hdfdir,recursive=False)             
         dsets = []
         def _is_dataset(obj):
             return isinstance(self.fileObj[hdfdir+"/"+obj],h5py.Dataset)        
-        return filter(_is_dataset,objs)
+        return list(map(str,filter(_is_dataset,objs)))
 
 
     def readDatasets(self,hdfdir,recursive=False,required=None,exit_if_missing=True):
