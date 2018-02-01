@@ -5,7 +5,7 @@ import numpy as np
 import scipy as sp
 from scipy.constants import c,constants
 from scipy.integrate import romberg
-from .constants import Pi,massSolar,Parsec
+from .constants import Pi,massSolar,Parsec,mega
 
 class Cosmology(object):
     """
@@ -229,8 +229,6 @@ class Cosmology(object):
         t = self.age_of_universe(0.0) - self.age_of_universe(z)
         return t
 
-
-
     
     def comoving_transverse_distance(self,z=0.0):
         """
@@ -253,9 +251,6 @@ class Cosmology(object):
         else:
             result = self.comoving_distance(z)
         return result
-
-
-
 
 
     def angular_diameter_distance(self,z=0.0):
@@ -350,7 +345,6 @@ class Cosmology(object):
             result = 4.0*Pi*(DM**3)/3.0
         return result
 
-    
 
     def dVdz(self,z=0.0):
         """
@@ -482,8 +476,14 @@ def adjustHubble(values,hIn,hOut,datatype,verbose=False):
         
 
 
+def wavelengthToRedshift(obsv,emit):
+    return (obsv/emit) - 1.0
 
-
+def redshiftToWavelength(z,emit):
+    return (1.0+z)*emit
+    
+def MpcToCM(r):
+    return r*Parsec*mega*100.0
 
 
 
