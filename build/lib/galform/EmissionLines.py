@@ -5,7 +5,7 @@ import sys,os,fnmatch
 import numpy as np
 from .io import GalformHDF5
 from .utils.datatypes import getDataType
-from .cosmology import Cosmology,MpcToCM
+from .cosmology import Cosmology
 from .constants import megaParsec,centi,Pi
 
 
@@ -39,7 +39,7 @@ class GalformEmissionLines(object):
         funcname = self.__class__.__name__+"."+sys._getframe().f_code.co_name
         if np.ndim(luminosity) > 0 and type(redshift) == float:
             redshift = np.ones_like(luminosity)*redshift
-        dL = MpcToCM(self.cosmology.luminosity_distance(redshift))
+        dL = self.cosmology.luminosity_distance(redshift)*megaParsec/centi
         area = 4.0*Pi*dL**2
         return luminosity/area
     

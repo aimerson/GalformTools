@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-import fnmatch,glob
+import fnmatch
 import numpy as np
 from ..hdf5 import HDF5
 from ..cosmology import Cosmology
@@ -73,44 +73,3 @@ class LightconeHDF5(HDF5):
     
 
                                        
-
-class PixelLightcone(object):
-    
-    def __init__(self,directory,filePrefix=None):
-        classname = self.__class__.__name__
-        funcname = self.__class__.__name__+"."+sys._getframe().f_code.co_name
-        self.directory = directory
-        # Determine prefix if not specified
-        if filePrefix is None:
-            filePrefix = glob.glob(self.directory+"/*.pixels-information")[0]
-            filePrefix = filePrefix.replace(self.directory+"/","").replace(".pixels-information","")
-        self.filePrefix = filePrefix            
-        # Read in pixel information
-        pixelInformationFile = self.directory+"/"+self.filePrefix+".pixels-information"
-        self.pixels = np.zeros(1,dtype=[("NSIDE",int),("area",float),("number",int)]).view(np.recarray)
-        with open(pixelInformationFile,'r') as f:
-            line = f.readline()
-            while line.startswith("#"):
-                MATCH = re.search("# NSIDE = (\d+)?\n?",line)
-                if MATCH is not None:
-                    self.pixels.NSIDE = int(MATCH.group(1))
-                MATCH = re.search("# PIXEL_AREA = ([\d\.]+) sq.deg.?\n?",line)
-                if MATCH is not None:
-                    self.pixels.area = float(MATCH.group(1))
-                line = f.readline()
-        self.pixels.number = len(np.loadtxt(pixelInformationFile,usecols=[0],dtype=int))
-        # Read galaxy property locations
-        propertyLocationsFile = self.directory+"/"+self.filePrefix+".property-locations"
-        properties = np.loadtxt(propertyLocationsFile,dtype=[("name","|S30"),("location","|S30")],usecols=[0,1])
-        self.properties = {}
-        for prop,location in zip(properties["name"],properties["location"]):
-            self.properties[prop] = location
-        del properties
-        return
-
-    
-
-    
-
-
-
