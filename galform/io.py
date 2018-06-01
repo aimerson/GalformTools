@@ -18,9 +18,13 @@ class GalformHDF5(HDF5):
         super(GalformHDF5, self).__init__(*args,**kwargs)
 
         # Check file is complete and not corrupted
-        complete = bool(np.array(self.fileObj["CompletionFlag"])[()])
-        if not complete:
-            raise FileError(classname+"(): File corrupted or not complete!")
+        self.complete = True
+        if "CompletionFlag" in self.fileObj.keys():
+            self.complete = bool(np.array(self.fileObj["CompletionFlag"])[()])
+            if not self.complete:
+                raise FileError(classname+"(): File corrupted or not complete!")
+        else:
+            print("WARNING! "+classname+"(): cannot locate completion flag. Proceed with caution!")
 
         # Store version
         self.branch = np.array(self.fileObj["Version"]['branchname'])[()]
